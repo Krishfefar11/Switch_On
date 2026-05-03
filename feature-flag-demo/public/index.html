@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotesApp — Feature Flag Demo</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" id="custom-font-link" disabled>
+</head>
+<body class="theme-light">
+<div class="app">
+
+  <!-- ── Sidebar ──────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo">
+        <div class="brand-icon">📝</div>
+        <div>
+          <div class="brand-name">NotesApp</div>
+          <div class="brand-sub">Feature Flag Demo</div>
+        </div>
+      </div>
+      <!-- Search (feature-search-bar flag) -->
+      <div id="search-container" class="hidden">
+        <input type="text" id="search-input" placeholder="🔍 Search notes…">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Views</div>
+      <div class="nav-item active">
+        <span class="nav-icon">📋</span> All Notes
+      </div>
+      <div id="trash-link" class="nav-item hidden">
+        <span class="nav-icon">🗑️</span> Deleted Notes
+      </div>
+      <div id="cloud-sync-btn" class="nav-item hidden">
+        <span class="nav-icon">☁️</span> Cloud Sync
+        <span class="badge badge-pro">PRO</span>
+      </div>
+    </div>
+
+    <!-- Live flag status panel -->
+    <div class="flag-status-panel" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
+      <div class="sidebar-section-label flag-status-title">🚩 Live Flags</div>
+      <div class="flag-status-list" id="flag-status-list">
+        <div style="font-size:0.68rem; color:rgba(255,255,255,0.2); padding: 0.25rem 0.5rem;">Connecting…</div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sse-status" id="sse-status">
+        <div class="sse-dot"></div>
+        <span>Connecting to live stream…</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────── -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-title">📝 All Notes</div>
+      <div class="topbar-actions">
+        <span id="word-count" class="hidden">0 words</span>
+        <span id="auto-save-indicator" class="hidden">Saved ✓</span>
+        <button id="export-pdf-btn" class="btn btn-outline btn-sm hidden">📄 Export PDF</button>
+        <button id="share-notes-btn" class="btn btn-outline btn-sm hidden">🔗 Share</button>
+        <button class="btn btn-primary btn-sm" onclick="createNewNote()">+ New Note</button>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <!-- Editor -->
+      <div>
+        <div class="card editor-card">
+          <div class="card-header">✏️ New Note</div>
+          <div class="editor-inputs">
+            <input type="text" id="note-title" placeholder="Note title…">
+
+            <!-- Rich text toolbar (feature-rich-text flag) -->
+            <div id="rich-text-toolbar" class="toolbar hidden">
+              <button class="toolbar-btn"><b>B</b></button>
+              <button class="toolbar-btn"><i>I</i></button>
+              <button class="toolbar-btn"><u>U</u></button>
+              <button class="toolbar-btn" style="font-size:0.7rem;">H1</button>
+              <button class="toolbar-btn" style="font-size:0.7rem;">H2</button>
+              <span style="width:1px;background:var(--border);margin:0 0.25rem;align-self:stretch;"></span>
+              <button class="toolbar-btn">🔗</button>
+              <button class="toolbar-btn">📷</button>
+            </div>
+
+            <textarea id="note-content" placeholder="Start writing your note here…" rows="6"></textarea>
+
+            <div class="editor-footer">
+              <div class="editor-footer-left">
+                <button id="attach-img-btn" class="icon-btn hidden">🖼️ Image</button>
+                <button id="voice-note-btn" class="icon-btn hidden">🎤 Voice</button>
+                <div id="tags-container" class="hidden">
+                  <input type="text" placeholder="#tag" class="tag-input">
+                </div>
+                <div class="reminder-picker">
+                  <span>⏰</span>
+                  <select id="reminder-select">
+                    <option value="0">No reminder</option>
+                    <option value="5000">In 5 seconds</option>
+                    <option value="10000">In 10 seconds</option>
+                  </select>
+                </div>
+              </div>
+              <div class="editor-footer-right">
+                <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes list -->
+      <div class="notes-panel">
+        <div class="card" style="overflow:hidden;">
+          <div class="card-header">
+            Your Notes
+            <span class="notes-count" id="notes-count">0 notes</span>
+          </div>
+          <div id="notes-grid">
+            <div class="note-empty">
+              <div class="note-empty-icon">📭</div>
+              <div>No notes yet — write your first one!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder modal -->
+<div id="reminder-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h2>⏰ Reminder!</h2>
+    <p id="reminder-text">Your note reminder is ringing.</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="dismissReminder()">Dismiss</button>
+      <button id="snooze-btn" class="btn btn-outline hidden" onclick="snoozeReminder()">Snooze 5s</button>
+      <button id="email-sync-btn" class="btn btn-outline hidden">✉️ Send to Email</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

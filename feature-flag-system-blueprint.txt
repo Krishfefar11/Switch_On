@@ -1,0 +1,714 @@
+Feature Flag Console & Real-Time Consumer System
+
+AI-Readable Master Architecture & Implementation Blueprint
+
+Document Type: Full-Stack System Blueprint — AI Tool Consumable
+Stack: Node.js + Express · MongoDB · React · Vanilla JS
+Auth Model: JWT + bcrypt + RBAC (Admin / Developer / Viewer)
+Real-Time: Server-Sent Events (SSE) — upgrade from polling
+Phases: 6 (System Design → Backend → Frontend → Demo → Hardening → Deploy)
+Comparable To: LaunchDarkly / Split.io (simplified, self-hosted)
+
+0. Instruction for AI Code-Generation Tool
+This document is the single source of truth for generating the Feature Flag Console project. Read every section before generating any code. Follow the phases in strict order. Sections marked [GENERATE] contain exact file paths, schemas, and logic that must be implemented verbatim unless a design note says otherwise. Sections marked [CONTEXT] are explanatory — do not skip them; they contain constraints and edge-case rules that affect code correctness. Generate ONE phase at a time and wait for confirmation unless instructed otherwise.
+1. Requirement Validation & Gap Analysis [CONTEXT]
+1.1 Missing Requirements Identified
+No token refresh / expiry strategy — spec says JWT but never defines exp TTL or refresh flow. Decision: access token TTL = 15 min, refresh token TTL = 7 days stored in httpOnly cookie.
+No rate-limiting — public /evaluate endpoint is unbounded. Decision: express-rate-limit 100 req/min per IP on evaluation routes.
+No pagination on audit logs — unbounded query will OOM at scale. Decision: cursor-based pagination, default page size 50.
+No soft-delete for flags — hard deletes destroy audit trail. Decision: add deletedAt field; DELETE route sets deletedAt, filters exclude soft-deleted records.
+No environment support — single flag set means staging bleeds into prod. Decision: add environment field (development | staging | production) to FeatureFlag schema.
+No flag versioning — spec mentions payload diff in audit logs but no version counter. Decision: add version integer that increments on every update.
+Consumer demo app userId — spec says 'pass unique userId' but never explains origin. Decision: generate UUID on first visit, store in localStorage.
+No CORS policy defined — cross-origin from demo app will be blocked. Decision: explicit CORS whitelist via env var ALLOWED_ORIGINS.
+No health-check endpoint — required for container orchestration. Decision: GET /health returns { status: ok, uptime, dbStatus }.
+Polling vs real-time — spec uses 2-second polling. This is acceptable for demo but wastes connections. Decision: upgrade consumer to Server-Sent Events (SSE); keep polling as fallback.
+1.2 Security Risks in Original Spec
+JWT secret hardcoded in examples — must come from env var JWT_SECRET (min 256-bit entropy).
+bcrypt rounds not specified — use 12 rounds (balance of security vs latency at scale).
+First-user-is-admin logic is a race condition under concurrent registrations — use MongoDB findOneAndUpdate with upsert to atomically count users.
+Audit logs must be immutable — disable update/delete routes on AuditLog collection; use MongoDB capped collection or append-only index.
+Evaluate endpoint exposes flag names publicly — add optional API key header X-Consumer-Key for consumer plane authentication.
+2. Architecture Decisions [CONTEXT]
+2.1 Monolith vs Microservices
+Decision: Modular Monolith. Microservices add operational overhead (service mesh, distributed tracing, inter-service auth) that is unjustified for a team-sized feature flag tool. The codebase is structured in clearly separated layers (routes / controllers / services / models) so it can be split later with minimal refactoring. The evaluation engine is isolated as a pure function module so it can be extracted to a Lambda/Edge function when throughput demands it.
+2.2 REST vs Event-Driven
+Decision: REST for control plane CRUD + SSE for real-time push. Full event-driven (Kafka/RabbitMQ) is overkill for this scale. SSE gives real-time flag delivery to the consumer plane with a single persistent HTTP connection per client, no WebSocket upgrade handshake, and works through HTTP/2 proxies. The control plane uses REST because flag mutations are low-frequency, transactional operations that need strong consistency guarantees, not eventual consistency.
+2.3 Polling vs SSE vs WebSockets
+Strategy
+Pros
+Cons
+Polling (original spec)
+Simple, works everywhere
+Wastes connections, 2s latency minimum, not scalable
+WebSockets
+Full-duplex, low latency
+Overkill — consumer only needs server→client push
+SSE (chosen)
+Native HTTP, auto-reconnect, works with HTTP/2
+One-directional only — acceptable here
+
+3. High-Level Architecture [CONTEXT]
+┌──────────────────────────────────────────────────────────────────────┐
+│                        CONTROL PLANE                                 │
+│                                                                      │
+│  ┌─────────────────┐   REST/JSON    ┌──────────────────────────┐    │
+│  │  React SPA      │◄──────────────►│  Express API Server      │    │
+│  │  (Dashboard)    │                │  Port 5000               │    │
+│  │                 │                │  ┌─────────────────────┐ │    │
+│  │  - Auth pages   │                │  │ Routes              │ │    │
+│  │  - Flag CRUD    │                │  │ Controllers         │ │    │
+│  │  - User mgmt    │                │  │ Services            │ │    │
+│  │  - Audit logs   │                │  │ Middlewares (JWT,   │ │    │
+│  └─────────────────┘                │  │  RBAC, RateLimit)   │ │    │
+│                                     │  └──────┬──────────────┘ │    │
+│                                     │         │                 │    │
+│                                     │  ┌──────▼──────────────┐ │    │
+│                                     │  │   MongoDB            │ │    │
+│                                     │  │  - users            │ │    │
+│                                     │  │  - featureflags     │ │    │
+│                                     │  │  - auditlogs        │ │    │
+│                                     │  └─────────────────────┘ │    │
+│                                     └──────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────┘
+                              │  SSE stream  (GET /sse/flags)
+                              │  REST        (GET /evaluate/:name)
+                              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                       CONSUMER PLANE                                 │
+│                                                                      │
+│  ┌──────────────┐   proxy   ┌──────────────────────────────────┐    │
+│  │ Vanilla JS   │◄─────────►│  Express Proxy  Port 3001        │    │
+│  │ Frontend     │           │  - Forwards to control plane API │    │
+│  │              │           │  - Adds X-Consumer-Key header    │    │
+│  │  - Renders   │           └──────────────────────────────────┘    │
+│  │    flags     │                                                    │
+│  │  - SSE conn  │                                                    │
+│  └──────────────┘                                                    │
+└──────────────────────────────────────────────────────────────────────┘
+4. Folder Structure [GENERATE]
+4.1 Backend (feature-flag-api/)
+feature-flag-api/
+├── src/
+│   ├── config/
+│   │   ├── db.js                  # Mongoose connect + retry logic
+│   │   └── env.js                 # Validated env vars (dotenv + joi)
+│   ├── models/
+│   │   ├── User.js                # User schema
+│   │   ├── FeatureFlag.js         # Feature flag schema
+│   │   └── AuditLog.js            # Immutable audit log schema
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── flagController.js
+│   │   ├── userController.js
+│   │   └── auditController.js
+│   ├── services/
+│   │   ├── authService.js
+│   │   ├── flagService.js
+│   │   ├── evaluationEngine.js    # Pure deterministic hash function
+│   │   ├── auditService.js
+│   │   └── sseService.js          # SSE client registry + broadcast
+│   ├── middlewares/
+│   │   ├── auth.js                # JWT verify middleware
+│   │   ├── rbac.js                # Role guard factory
+│   │   └── rateLimiter.js         # express-rate-limit configs
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── flagRoutes.js
+│   │   ├── userRoutes.js
+│   │   ├── auditRoutes.js
+│   │   └── sseRoutes.js
+│   └── app.js                     # Express app factory (no listen)
+├── server.js                      # Entry point — calls app.listen
+├── .env.example
+├── package.json
+└── README.md
+4.2 Frontend (feature-flag-ui/)
+feature-flag-ui/
+├── public/
+├── src/
+│   ├── api/
+│   │   ├── axiosInstance.js       # Base axios with interceptors
+│   │   ├── authApi.js
+│   │   ├── flagApi.js
+│   │   ├── userApi.js
+│   │   └── auditApi.js
+│   ├── context/
+│   │   └── AuthContext.jsx        # JWT decode, login, logout
+│   ├── hooks/
+│   │   ├── useFlags.js
+│   │   └── useAuditLogs.js
+│   ├── components/
+│   │   ├── common/
+│   │   │   ├── ProtectedRoute.jsx
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Toast.jsx
+│   │   │   └── Spinner.jsx
+│   │   ├── flags/
+│   │   │   ├── FlagList.jsx
+│   │   │   ├── FlagCard.jsx
+│   │   │   └── FlagForm.jsx
+│   │   ├── users/
+│   │   │   ├── UserList.jsx
+│   │   │   └── UserRow.jsx
+│   │   └── audit/
+│   │       ├── AuditTable.jsx
+│   │       └── AuditRow.jsx
+│   ├── pages/
+│   │   ├── LoginPage.jsx
+│   │   ├── RegisterPage.jsx
+│   │   ├── DashboardPage.jsx
+│   │   ├── FlagsPage.jsx
+│   │   ├── UsersPage.jsx
+│   │   └── AuditPage.jsx
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css                  # Glassmorphism tokens
+├── vite.config.js
+└── package.json
+4.3 Consumer Demo App (feature-flag-demo/)
+feature-flag-demo/
+├── proxy/
+│   ├── server.js                  # Express proxy + SSE relay
+│   └── package.json
+└── public/
+    ├── index.html                 # Vanilla JS SPA
+    ├── app.js                     # SSE connect + DOM updater
+    └── styles.css
+5. Database Design [GENERATE]
+5.1 User Schema (models/User.js)
+const UserSchema = new mongoose.Schema({
+  email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+  passwordHash: { type: String, required: true },
+  role:         { type: String, enum: ['admin','developer','viewer'], default: 'viewer' },
+  isActive:     { type: Boolean, default: true },
+}, { timestamps: true });
+ 
+// Indexes:
+UserSchema.index({ email: 1 });          // unique login lookup
+5.2 FeatureFlag Schema (models/FeatureFlag.js)
+const FeatureFlagSchema = new mongoose.Schema({
+  name:               { type: String, required: true, unique: true, trim: true, lowercase: true },
+  description:        { type: String, default: '' },
+  enabled:            { type: Boolean, default: false },
+  rolloutPercentage:  { type: Number, min: 0, max: 100, default: 0 },
+  environment:        { type: String, enum: ['development','staging','production'], default: 'development' },
+  version:            { type: Number, default: 1 },    // increments on every update
+  deletedAt:          { type: Date, default: null },   // soft delete
+  createdBy:          { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  updatedBy:          { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
+ 
+// Indexes:
+FeatureFlagSchema.index({ name: 1, environment: 1 });   // evaluation hot path
+FeatureFlagSchema.index({ deletedAt: 1 });              // filter active flags
+5.3 AuditLog Schema (models/AuditLog.js)
+const AuditLogSchema = new mongoose.Schema({
+  userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  action:       { type: String, enum: ['CREATE','UPDATE','DELETE','TOGGLE'], required: true },
+  resourceType: { type: String, default: 'FeatureFlag' },
+  resourceId:   { type: mongoose.Schema.Types.ObjectId },
+  resourceName: { type: String },
+  diff:         { type: mongoose.Schema.Types.Mixed },  // { before: {}, after: {} }
+  ipAddress:    { type: String },
+  userAgent:    { type: String },
+}, { timestamps: true });
+ 
+// IMPORTANT: No pre/post hooks that allow updates. Collection is append-only.
+// Indexes:
+AuditLogSchema.index({ resourceId: 1, createdAt: -1 });
+AuditLogSchema.index({ userId: 1, createdAt: -1 });
+AuditLogSchema.index({ createdAt: -1 });  // default sort for audit viewer
+6. Feature Evaluation Engine [GENERATE]
+File: src/services/evaluationEngine.js — Pure function, no side effects, no DB calls. Must be importable independently for unit testing.
+// evaluationEngine.js
+const crypto = require('crypto');
+ 
+/**
+ * Deterministically evaluates whether a user is in the rollout bucket.
+ *
+ * Algorithm:
+ *   1. Concatenate featureName + ':' + userId
+ *   2. Compute MD5 hash (fast, uniform distribution, not security-critical here)
+ *   3. Take first 8 hex chars → parse as uint32
+ *   4. bucket = (hashInt / MAX_UINT32) * 100  → float 0–100
+ *   5. User is IN if bucket < rolloutPercentage AND flag.enabled === true
+ *
+ * Properties:
+ *   - Same user always gets same bucket for a given flag name
+ *   - Uniform distribution: ~1% of users per percentage point
+ *   - Changing flag name = different distribution (intentional)
+ *
+ * @param {Object} flag - FeatureFlag document
+ * @param {string} userId - Any stable string identifier
+ * @returns {{ enabled: boolean, bucket: number, reason: string }}
+ */
+function evaluate(flag, userId) {
+  if (!flag.enabled) {
+    return { enabled: false, bucket: null, reason: 'FLAG_DISABLED' };
+  }
+ 
+  if (flag.rolloutPercentage === 100) {
+    return { enabled: true, bucket: 100, reason: 'FULL_ROLLOUT' };
+  }
+ 
+  if (flag.rolloutPercentage === 0) {
+    return { enabled: false, bucket: 0, reason: 'ZERO_ROLLOUT' };
+  }
+ 
+  const input  = `${flag.name}:${userId}`;
+  const hash   = crypto.createHash('md5').update(input).digest('hex');
+  const hashInt = parseInt(hash.substring(0, 8), 16);            // 0 – 4294967295
+  const bucket  = (hashInt / 0xFFFFFFFF) * 100;                  // 0.0 – 100.0
+ 
+  return {
+    enabled: bucket < flag.rolloutPercentage,
+    bucket:  parseFloat(bucket.toFixed(4)),
+    reason:  bucket < flag.rolloutPercentage ? 'IN_ROLLOUT' : 'OUT_OF_ROLLOUT',
+  };
+}
+ 
+module.exports = { evaluate };
+7. Backend Implementation Spec [GENERATE]
+7.1 Environment Variables (.env.example)
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/feature_flags
+JWT_SECRET=replace_with_256bit_random_secret
+JWT_EXPIRES_IN=15m
+REFRESH_TOKEN_SECRET=replace_with_different_256bit_secret
+REFRESH_TOKEN_EXPIRES_IN=7d
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+CONSUMER_API_KEY=replace_with_random_consumer_key
+NODE_ENV=development
+7.2 Express App Setup (src/app.js)
+Apply middleware in this exact order:
+1. helmet()                          // Security headers
+2. cors({ origin: ALLOWED_ORIGINS }) // Explicit whitelist
+3. express.json({ limit: '10kb' })   // Prevent large payload attacks
+4. morgan('combined')                // Request logging
+5. rateLimiter.global                // 200 req/min global
+// Routes:
+6. /api/auth       → authRoutes
+7. /api/flags      → flagRoutes      (JWT required)
+8. /api/users      → userRoutes      (JWT + admin role)
+9. /api/audit      → auditRoutes     (JWT required)
+10. /api/evaluate  → evaluateRoute   (API key or JWT)
+11. /sse/flags     → sseRoutes       (API key or JWT)
+12. /health        → healthRoute
+// Error handling:
+13. 404 handler
+14. Global error handler (never leak stack in production)
+7.3 Auth Routes & Controller
+POST   /api/auth/register
+  Body:  { email, password }
+  Logic:
+    1. Count existing users with User.countDocuments()
+    2. If count === 0 → role = 'admin' (atomic, first user only)
+    3. hash password with bcrypt (rounds=12)
+    4. Save user
+    5. Return accessToken + set refreshToken as httpOnly cookie
+    6. Log action: CREATE to audit (skip for auth — no flag resource)
+ 
+POST   /api/auth/login
+  Body:  { email, password }
+  Logic:
+    1. Find user by email
+    2. bcrypt.compare(password, user.passwordHash)
+    3. Issue accessToken (JWT, 15min) + refreshToken (httpOnly cookie, 7d)
+ 
+POST   /api/auth/refresh
+  Logic: Verify refreshToken cookie → issue new accessToken
+ 
+POST   /api/auth/logout
+  Logic: Clear refreshToken cookie
+ 
+GET    /api/auth/me
+  Middleware: auth
+  Returns: { id, email, role, createdAt }
+7.4 Feature Flag Routes
+GET    /api/flags
+  Middleware: auth
+  Query params: environment, page, limit, search
+  Logic: Find flags where deletedAt=null, paginate, return with total count
+ 
+POST   /api/flags
+  Middleware: auth, rbac(['admin','developer'])
+  Body: { name, description, enabled, rolloutPercentage, environment }
+  Logic:
+    1. Validate name is URL-safe slug
+    2. Create flag, set createdBy = req.user.id
+    3. auditService.log(CREATE, before=null, after=flag)
+    4. Broadcast SSE event: { type: 'FLAG_CREATED', flag }
+ 
+GET    /api/flags/:id
+  Middleware: auth
+  Returns single flag by id or name
+ 
+PATCH  /api/flags/:id
+  Middleware: auth, rbac(['admin','developer'])
+  Body: partial { description, enabled, rolloutPercentage, environment }
+  Logic:
+    1. Capture before state
+    2. Increment version
+    3. Update updatedBy = req.user.id
+    4. auditService.log(UPDATE, before, after)
+    5. SSE broadcast: { type: 'FLAG_UPDATED', flag }
+ 
+PATCH  /api/flags/:id/toggle
+  Middleware: auth, rbac(['admin','developer'])
+  Logic: Flip enabled boolean, increment version, audit TOGGLE, SSE broadcast
+ 
+DELETE /api/flags/:id
+  Middleware: auth, rbac(['admin'])
+  Logic: Soft delete (set deletedAt), audit DELETE, SSE broadcast: FLAG_DELETED
+ 
+GET    /api/evaluate/:name
+  Middleware: consumerAuth (X-Consumer-Key header OR JWT)
+  Query: ?userId=<string>&environment=<string>
+  Logic:
+    1. Find flag by name + environment (deletedAt=null)
+    2. Return evaluationEngine.evaluate(flag, userId)
+    3. Include flag metadata: { name, enabled, rolloutPercentage, result }
+7.5 User Routes (Admin Only)
+GET    /api/users          — list all users (paginated)
+PATCH  /api/users/:id/role — change role { role: 'developer'|'viewer' }
+                             Cannot change own role. Cannot demote last admin.
+PATCH  /api/users/:id/deactivate — soft disable (isActive=false)
+7.6 Audit Log Routes
+GET    /api/audit
+  Middleware: auth
+  Query: ?resourceId=&userId=&action=&from=&to=&page=&limit=
+  Returns: { logs: [...], total, page, pages }
+  Note: Viewers can only see their own entries (rbac filter in service layer)
+7.7 SSE Route (src/routes/sseRoutes.js)
+GET    /sse/flags
+  Middleware: consumerAuth
+  Logic:
+    1. Set headers:
+       Content-Type: text/event-stream
+       Cache-Control: no-cache
+       Connection: keep-alive
+       X-Accel-Buffering: no        ← CRITICAL: disables nginx buffering
+    2. Register client in sseService.clients Set
+    3. Send initial snapshot: all active flags for requested environment
+    4. On req 'close': remove from clients Set
+    5. Heartbeat: setInterval send ': keep-alive\n\n' every 25s
+7.8 SSE Service (src/services/sseService.js)
+// In-memory client registry (use Redis pub/sub for multi-instance)
+const clients = new Map();   // clientId → response object
+ 
+function addClient(id, res) { clients.set(id, res); }
+function removeClient(id)   { clients.delete(id); }
+ 
+function broadcast(event, data) {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  clients.forEach(res => {
+    try { res.write(payload); }
+    catch (e) { /* client disconnected, will be cleaned by 'close' event */ }
+  });
+}
+ 
+module.exports = { addClient, removeClient, broadcast };
+7.9 RBAC Middleware
+// middlewares/rbac.js
+const rbac = (allowedRoles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Forbidden: insufficient role' });
+  }
+  next();
+};
+module.exports = rbac;
+ 
+// Usage: router.delete('/:id', auth, rbac(['admin']), flagController.deleteFlag);
+8. Frontend Implementation Spec [GENERATE]
+8.1 Tech Stack
+Vite + React 18
+React Router v6
+Framer Motion — page transitions + card animations
+Axios — API layer
+React Hot Toast — notifications
+Lucide React — icons
+CSS variables — Glassmorphism design tokens (no external CSS framework)
+8.2 Auth Context (context/AuthContext.jsx)
+State: { user: { id, email, role } | null, isLoading }
+Actions:
+  login(email, password)  → POST /api/auth/login → decode JWT → setUser
+  register(email,password)→ POST /api/auth/register
+  logout()                → POST /api/auth/logout → setUser(null)
+  refresh()               → POST /api/auth/refresh (called on 401 via Axios interceptor)
+ 
+Axios interceptor:
+  - Attach Authorization: Bearer <accessToken> to every request
+  - On 401 response: attempt one refresh → retry original request
+  - On second 401: call logout()
+8.3 Protected Route Logic
+<ProtectedRoute roles={['admin','developer']}>
+  <UsersPage />
+</ProtectedRoute>
+ 
+Logic:
+  - If !user → redirect to /login (preserve intended URL in location state)
+  - If roles provided and !roles.includes(user.role) → show 403 page
+8.4 Page Specs
+LoginPage / RegisterPage
+Centered glassmorphism card
+Email + password inputs with validation
+Submit triggers AuthContext action
+On success: navigate to /dashboard
+On error: toast.error(message)
+DashboardPage
+Stat cards: Total Flags, Active Flags, Users, Recent Changes
+Flag cards grid — each shows name, environment badge, enabled toggle, rollout % bar
+Quick toggle calls PATCH /api/flags/:id/toggle
+Framer Motion staggerChildren on card grid
+FlagsPage
+DataTable with search, environment filter, pagination
+Create Flag button → opens FlagForm modal
+Edit icon → opens FlagForm pre-filled
+Delete (admin only) → confirm dialog → DELETE request
+FlagForm fields: name (slug-only regex), description, environment select, enabled switch, rollout slider 0-100
+UsersPage (admin only)
+Table: email, role badge, status, joined date, actions
+Role dropdown inline edit → PATCH /api/users/:id/role
+Cannot change own role (disable own row actions)
+AuditPage
+Timeline table: timestamp, user, action badge, resource, diff viewer
+Filter by action type, user, date range
+Diff viewer: show before/after JSON side-by-side for UPDATE actions
+Paginated (50 per page, cursor-based)
+8.5 Glassmorphism Design Tokens (index.css)
+:root {
+  --bg-primary:   #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --glass-bg:     rgba(255,255,255,0.05);
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-blur:   blur(20px);
+  --accent:       #6c63ff;
+  --accent-hover: #7c74ff;
+  --success:      #00d4aa;
+  --warning:      #ffd166;
+  --danger:       #ef476f;
+  --text-primary: #e2e8f0;
+  --text-muted:   #94a3b8;
+  --radius:       12px;
+  --shadow:       0 8px 32px rgba(0,0,0,0.37);
+}
+ 
+.glass-card {
+  background:     var(--glass-bg);
+  border:         1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  border-radius:  var(--radius);
+  box-shadow:     var(--shadow);
+}
+9. Consumer Demo App [GENERATE]
+9.1 Proxy Server (proxy/server.js)
+// Express proxy — forwards to control plane, adds auth header
+const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+ 
+const app  = express();
+const TARGET = process.env.API_URL || 'http://localhost:5000';
+ 
+app.use(express.static('../public'));
+ 
+// Proxy: inject consumer API key, relay SSE stream
+app.use('/api', createProxyMiddleware({
+  target: TARGET,
+  changeOrigin: true,
+  on: {
+    proxyReq: (proxyReq) => {
+      proxyReq.setHeader('X-Consumer-Key', process.env.CONSUMER_API_KEY);
+    }
+  }
+}));
+ 
+app.use('/sse', createProxyMiddleware({
+  target: TARGET,
+  changeOrigin: true,
+  ws: false,
+  on: {
+    proxyReq: (proxyReq) => {
+      proxyReq.setHeader('X-Consumer-Key', process.env.CONSUMER_API_KEY);
+    }
+  }
+}));
+ 
+app.listen(3001, () => console.log('Consumer proxy on :3001'));
+9.2 Vanilla JS App (public/app.js)
+// 1. Get or generate stable userId
+const userId = localStorage.getItem('ff_userId') || crypto.randomUUID();
+localStorage.setItem('ff_userId', userId);
+ 
+// 2. Connect to SSE
+const es = new EventSource('/sse/flags');
+ 
+const flags = {};   // local cache: flagName → { enabled, rolloutPercentage, ... }
+ 
+es.addEventListener('FLAG_SNAPSHOT', e => {
+  const data = JSON.parse(e.data);
+  data.flags.forEach(f => flags[f.name] = f);
+  renderAll();
+});
+ 
+['FLAG_CREATED','FLAG_UPDATED','FLAG_DELETED','FLAG_TOGGLED'].forEach(evt => {
+  es.addEventListener(evt, e => {
+    const { flag } = JSON.parse(e.data);
+    if (evt === 'FLAG_DELETED') { delete flags[flag.name]; }
+    else { flags[flag.name] = flag; }
+    renderAll();
+  });
+});
+ 
+es.onerror = () => console.warn('SSE disconnected, EventSource auto-reconnects');
+ 
+// 3. Render — call /api/evaluate/:name?userId=<id> for each flag
+async function evaluate(flagName) {
+  const r = await fetch(`/api/evaluate/${flagName}?userId=${userId}&environment=development`);
+  return r.json();
+}
+ 
+async function renderAll() {
+  const container = document.getElementById('flags-container');
+  container.innerHTML = '';
+  for (const [name, flag] of Object.entries(flags)) {
+    const result = await evaluate(name);
+    const el = document.createElement('div');
+    el.className = `flag-card ${result.enabled ? 'active' : 'inactive'}`;
+    el.innerHTML = `
+      <h3>${name}</h3>
+      <p>${flag.description || ''}</p>
+      <span class="badge">${result.enabled ? 'ENABLED FOR YOU' : 'DISABLED'}</span>
+      <small>Rollout: ${flag.rolloutPercentage}% | Bucket: ${result.bucket ?? 'N/A'}</small>
+    `;
+    container.appendChild(el);
+  }
+}
+10. Advanced Enhancements & Security [GENERATE]
+10.1 Error Handling Strategy
+// src/utils/AppError.js
+class AppError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;   // vs programming errors
+  }
+}
+ 
+// Global error handler (last middleware in app.js):
+app.use((err, req, res, next) => {
+  const status  = err.statusCode || 500;
+  const message = err.isOperational ? err.message : 'Internal Server Error';
+  if (process.env.NODE_ENV !== 'production') console.error(err);
+  res.status(status).json({ error: message });
+});
+10.2 Security Checklist
+helmet() — sets X-Content-Type, X-Frame-Options, HSTS, CSP
+express-mongo-sanitize — prevents NoSQL injection on all body/query params
+express-rate-limit — 100/min on /evaluate, 10/min on /auth/login
+bcrypt rounds=12 — never store plain passwords, never log passwords
+JWT secret minimum 256 bits (32 random bytes, base64-encoded)
+httpOnly + sameSite=strict on refresh token cookie
+Audit log writes must never be skipped — wrap in try/catch that logs to stderr but never blocks the main response
+Soft-delete flags: never expose deletedAt flags via public evaluate endpoint
+Validate flag name as /^[a-z0-9_-]+$/ — prevents path traversal in evaluate URL
+CORS: never use wildcard '*' — always use explicit ALLOWED_ORIGINS env var
+10.3 Scalability Notes
+Evaluation engine is stateless — safe to run on Lambda/Edge (extract to separate function later)
+SSE sseService.clients is in-process memory — for multi-instance deploy, replace with Redis pub/sub (ioredis)
+MongoDB: add replica set for HA; use read preference 'secondaryPreferred' for audit log reads
+Flag caching: add Redis layer (TTL=5s) in flagService.getByName() to reduce DB reads on hot evaluate path
+Rate limit store: use Redis adapter for express-rate-limit in multi-instance deploy
+11. Deployment Guide [GENERATE]
+11.1 Backend (Railway / Render / Fly.io)
+# package.json scripts:
+"start": "node server.js",
+"dev":   "nodemon server.js"
+ 
+# Required env vars on host (do NOT commit .env):
+PORT, MONGO_URI, JWT_SECRET, REFRESH_TOKEN_SECRET,
+JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN,
+ALLOWED_ORIGINS, CONSUMER_API_KEY, NODE_ENV=production
+11.2 Frontend (Vercel / Netlify)
+# vite.config.js — set base URL for API:
+define: { 'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL) }
+ 
+# .env.production:
+VITE_API_URL=https://your-backend.railway.app
+ 
+# Build command:
+npm run build   # outputs to dist/
+11.3 MongoDB Atlas Setup
+1. Create free M0 cluster on atlas.mongodb.com
+2. Create DB user with readWrite role on feature_flags database
+3. Add 0.0.0.0/0 to IP whitelist (or restrict to server IPs)
+4. Get connection string: mongodb+srv://<user>:<pass>@cluster.mongodb.net/feature_flags?retryWrites=true&w=majority
+5. Set MONGO_URI env var on backend host
+6. Create indexes from schema specs above (Mongoose auto-creates on startup)
+11.4 Consumer Demo App
+# proxy/.env:
+API_URL=https://your-backend.railway.app
+CONSUMER_API_KEY=<same key as backend>
+PORT=3001
+ 
+# Deploy as Node service (same host as backend, different port)
+# Or: serve public/ from CDN, set API_URL in app.js directly
+12. Exact Dependency List [GENERATE]
+12.1 Backend (feature-flag-api/package.json)
+"dependencies": {
+  "bcryptjs":              "^2.4.3",
+  "cors":                  "^2.8.5",
+  "dotenv":                "^16.3.1",
+  "express":               "^4.18.2",
+  "express-mongo-sanitize":"^2.2.0",
+  "express-rate-limit":    "^7.1.5",
+  "helmet":                "^7.1.0",
+  "joi":                   "^17.11.0",
+  "jsonwebtoken":          "^9.0.2",
+  "mongoose":              "^8.0.3",
+  "morgan":                "^1.10.0",
+  "uuid":                  "^9.0.1"
+},
+"devDependencies": {
+  "nodemon": "^3.0.2"
+}
+12.2 Frontend (feature-flag-ui/package.json)
+"dependencies": {
+  "axios":            "^1.6.2",
+  "framer-motion":    "^10.16.16",
+  "lucide-react":     "^0.303.0",
+  "react":            "^18.2.0",
+  "react-dom":        "^18.2.0",
+  "react-hot-toast":  "^2.4.1",
+  "react-router-dom": "^6.21.1"
+},
+"devDependencies": {
+  "@vitejs/plugin-react": "^4.2.1",
+  "vite":                 "^5.0.8"
+}
+12.3 Consumer Demo (feature-flag-demo/proxy/package.json)
+"dependencies": {
+  "dotenv":              "^16.3.1",
+  "express":             "^4.18.2",
+  "http-proxy-middleware":"^2.0.6"
+}
+13. Recommended Generation Order for AI Tool
+Follow this exact order. Each step depends on the previous. Do not generate tests or comments unless explicitly requested.
+Step 1: feature-flag-api/ — package.json, .env.example, server.js
+Step 2: src/config/db.js, src/config/env.js
+Step 3: src/models/User.js, FeatureFlag.js, AuditLog.js
+Step 4: src/services/evaluationEngine.js (pure function, no DB)
+Step 5: src/services/auditService.js
+Step 6: src/services/sseService.js
+Step 7: src/middlewares/auth.js, rbac.js, rateLimiter.js
+Step 8: src/controllers/ + src/services/ for auth, flags, users, audit
+Step 9: src/routes/ — wire all controllers
+Step 10: src/app.js — assemble all middleware + routes
+Step 11: feature-flag-ui/ — Vite scaffold, package.json
+Step 12: src/api/ — axiosInstance + all API modules
+Step 13: src/context/AuthContext.jsx
+Step 14: src/components/common/ — ProtectedRoute, Navbar, Toast, Spinner
+Step 15: src/pages/ — all 6 pages
+Step 16: src/App.jsx + main.jsx + index.css
+Step 17: feature-flag-demo/ — proxy/server.js, public/index.html, public/app.js, public/styles.css
