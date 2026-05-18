@@ -108,7 +108,7 @@ Proper configuration is required for both local and production environments. Pro
 | **API** | `MONGO_URI` | Connection string for MongoDB |
 | **API** | `JWT_SECRET` | Cryptographic secret for signing auth tokens |
 | **API** | `CONSUMER_API_KEY` | Dedicated authentication key for the Demo App |
-| **API** | `ALLOWED_ORIGINS` | CORS whitelist (e.g., `http://localhost:5173`) |
+| **API** | `ALLOWED_ORIGINS` | CORS whitelist |
 | **UI** | `VITE_API_URL` | Base URI of the backend API |
 | **Demo** | `API_URL` | Base URI of the backend API for the proxy target |
 | **Demo** | `CONSUMER_API_KEY` | Exact match of the API's consumer key |

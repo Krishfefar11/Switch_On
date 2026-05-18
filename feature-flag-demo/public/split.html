@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SwitchOn — Split-Screen Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: rgba(255,255,255,0.07);
+    --t1: #f0f0f5;
+    --t2: #a0a0b8;
+    --t3: #505068;
+    --accent: #7c3aed;
+    --accent-l: #a78bfa;
+    --green: #10b981;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--t1); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Top bar ── */
+  .topbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 1rem;
+    padding: 0 1.25rem; height: 48px;
+    background: var(--surface); border-bottom: 1px solid var(--border); z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 0.45rem; font-weight: 700; font-size: 0.9rem; text-decoration: none; color: var(--t1); }
+  .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-l); box-shadow: 0 0 8px var(--accent-l); }
+  .divider { width: 1px; height: 18px; background: var(--border); }
+  .page-title { font-size: 0.8rem; color: var(--t2); }
+  .pill { font-size: 0.68rem; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: rgba(124,58,237,0.15); color: var(--accent-l); border: 1px solid rgba(124,58,237,0.25); }
+  .spacer { flex: 1; }
+  .sse-status { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; color: var(--t3); }
+  .sse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t3); }
+  .sse-dot.live { background: var(--green); animation: pulse 2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .btn { display: flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.8rem; border-radius: 7px; font-size: 0.75rem; font-weight: 500; text-decoration: none; border: 1px solid var(--border); color: var(--t2); white-space: nowrap; }
+  .btn:hover { color: var(--t1); border-color: rgba(255,255,255,0.15); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn.primary:hover { background: #6d28d9; }
+
+  /* ── User headers ── */
+  .user-headers { flex-shrink: 0; display: flex; border-bottom: 1px solid var(--border); }
+  .user-col { flex: 1; display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border-right: 1px solid var(--border); min-width: 0; }
+  .user-col:last-child { border-right: none; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; }
+  .user-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-email { font-size: 0.68rem; color: var(--t3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .user-badge { margin-left: auto; flex-shrink: 0; font-size: 0.67rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; text-transform: capitalize; }
+
+  /* ── Frames ── */
+  .frames { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+  .frame-wrap { flex: 1; border-right: 1px solid var(--border); position: relative; overflow: hidden; }
+  .frame-wrap:last-child { border-right: none; }
+  iframe { width: 100%; height: 100%; border: none; display: block; }
+
+  /* ── Loading overlay ── */
+  .frame-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; background: var(--bg); z-index: 5; pointer-events: none; transition: opacity 0.4s ease; }
+  .frame-loading.done { opacity: 0; }
+  .spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent-l); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-label { font-size: 0.75rem; color: var(--t3); }
+
+  /* ── Empty / error state ── */
+  .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0.75rem; color: var(--t3); font-size: 0.85rem; }
+
+  /* ── Hint bar ── */
+  .hintbar { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.45rem 1rem; background: rgba(124,58,237,0.06); border-top: 1px solid rgba(124,58,237,0.12); font-size: 0.72rem; color: var(--t3); }
+  .hintbar strong { color: var(--t2); }
+
+  /* ── Full-page loading ── */
+  .page-loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; z-index: 99; transition: opacity 0.35s ease; }
+  .page-loading.done { opacity: 0; pointer-events: none; }
+  .big-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent-l); border-radius: 50%; animation: spin 0.9s linear infinite; }
+  .loading-text { font-size: 0.82rem; color: var(--t3); }
+</style>
+</head>
+<body>
+
+<!-- Full-page loading until users are fetched -->
+<div class="page-loading" id="page-loading">
+  <div class="big-spinner"></div>
+  <div class="loading-text" id="page-loading-text">Loading dashboard users…</div>
+</div>
+
+<div class="shell" id="shell" style="visibility:hidden">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <a class="logo" href="/"><div class="logo-dot"></div>SwitchOn</a>
+    <div class="divider"></div>
+    <span class="page-title">Split-Screen Demo</span>
+    <span class="pill" id="user-count-pill">…</span>
+    <div class="spacer"></div>
+    <div class="sse-status">
+      <div class="sse-dot" id="sse-dot"></div>
+      <span id="sse-label">Connecting…</span>
+    </div>
+    <a href="/" class="btn">🛍 Full Demo</a>
+    <a href="#" id="dashboard-link" class="btn primary" target="_blank">Dashboard ↗</a>
+  </header>
+
+  <!-- User headers — rendered dynamically -->
+  <div class="user-headers" id="user-headers"></div>
+
+  <!-- Iframes — rendered dynamically -->
+  <div class="frames" id="frames"></div>
+
+  <!-- Hint bar -->
+  <div class="hintbar">
+    <span>🎯 Toggle any flag in the</span>
+    <strong>Dashboard</strong>
+    <span>→ each storefront re-evaluates independently for its user — no page refresh, no simulation.</span>
+  </div>
+
+</div>
+
+<script>
+let _env         = 'development';
+let _dashboardUrl = '';
+let _users       = [];      // filled from /api/evaluate/_users
+const MAX_USERS  = 4;       // cap at 4 columns so layout doesn't break
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function setPageLoading(text) {
+  const el = document.getElementById('page-loading-text');
+  if (el) el.textContent = text;
+}
+
+function hidePageLoading() {
+  const overlay = document.getElementById('page-loading');
+  if (overlay) overlay.classList.add('done');
+  const shell = document.getElementById('shell');
+  if (shell) shell.style.visibility = 'visible';
+}
+
+function frameLoaded(idx) {
+  const overlay = document.getElementById(`load-${idx}`);
+  if (overlay) overlay.classList.add('done');
+}
+
+function setLive(ok) {
+  const dot   = document.getElementById('sse-dot');
+  const label = document.getElementById('sse-label');
+  if (!dot || !label) return;
+  if (ok) { dot.classList.add('live'); label.textContent = 'Live — changes instant'; }
+  else    { dot.classList.remove('live'); label.textContent = 'Reconnecting…'; }
+}
+
+// ── Render user header columns ────────────────────────────────────────
+function renderHeaders(users) {
+  const container = document.getElementById('user-headers');
+  container.innerHTML = users.map(u => {
+    const bg     = u.color + '20';
+    const border = u.color + '40';
+    return `
+      <div class="user-col" style="border-color:var(--border)">
+        <div class="avatar" style="background:${u.color}">${u.initials}</div>
+        <div style="min-width:0">
+          <div class="user-name" style="color:${u.color}">${u.name}</div>
+          <div class="user-email">${u.email}</div>
+        </div>
+        <span class="user-badge" style="background:${bg};color:${u.color};border:1px solid ${border}">${u.role} · ${u.plan}</span>
+      </div>`;
+  }).join('');
+
+  // Update pill
+  const pill = document.getElementById('user-count-pill');
+  if (pill) pill.textContent = `${users.length} live user${users.length !== 1 ? 's' : ''}`;
+}
+
+// ── Render iframe columns ──────────────────────────────────────────────
+function renderFrames(users) {
+  const container = document.getElementById('frames');
+  container.innerHTML = users.map((u, i) => `
+    <div class="frame-wrap">
+      <div class="frame-loading" id="load-${i}">
+        <div class="spinner"></div>
+        <div class="loading-label">Loading ${u.name.split(' ')[0]}'s store…</div>
+      </div>
+      <iframe src="/?user=${i}" title="${u.name}" onload="frameLoaded(${i})"></iframe>
+    </div>`).join('');
+}
+
+// ── Fetch real users from API ─────────────────────────────────────────
+async function fetchUsers() {
+  setPageLoading('Loading dashboard users…');
+  try {
+    const r    = await fetch('/api/evaluate/_users');
+    const data = await r.json();
+    if (Array.isArray(data.users) && data.users.length > 0) {
+      return data.users.slice(0, MAX_USERS);
+    }
+  } catch {}
+  return null;
+}
+
+// ── Startup ───────────────────────────────────────────────────────────
+async function startup() {
+  // 1. Config
+  try {
+    const cfg = await (await fetch('/config.json')).json();
+    _env = cfg.environment || 'development';
+    _dashboardUrl = cfg.dashboardUrl || '';
+    if (_dashboardUrl) {
+      const link = document.getElementById('dashboard-link');
+      if (link) link.href = _dashboardUrl;
+    }
+  } catch {}
+
+  // 2. Users
+  setPageLoading('Loading dashboard users…');
+  const users = await fetchUsers();
+
+  if (!users || users.length === 0) {
+    hidePageLoading();
+    const frames = document.getElementById('frames');
+    if (frames) frames.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size:2rem">👤</div>
+        <div>No users found in the dashboard.</div>
+        <div style="font-size:0.75rem">Create users in the Dashboard → Users section, then reload this page.</div>
+      </div>`;
+    document.getElementById('user-headers').innerHTML = '';
+    document.getElementById('user-count-pill').textContent = '0 users';
+    return;
+  }
+
+  _users = users;
+
+  // 3. Render layout
+  setPageLoading('Building storefronts…');
+  renderHeaders(users);
+  renderFrames(users);
+  hidePageLoading();
+
+  // 4. SSE for the top-bar live indicator
+  const es = new EventSource(`/sse/flags?environment=${_env}`);
+  es.onopen  = () => setLive(true);
+  es.onerror = () => setLive(false);
+  es.addEventListener('FLAG_SNAPSHOT', () => setLive(true));
+}
+
+startup();
+</script>
+</body>
+</html>

@@ -11,9 +11,10 @@ const { global: globalLimiter } = require('./middlewares/rateLimiter');
 const authRoutes = require('./routes/authRoutes');
 const flagRoutes = require('./routes/flagRoutes');
 const userRoutes = require('./routes/userRoutes');
-const auditRoutes = require('./routes/auditRoutes');
-const evaluateRoute = require('./routes/evaluateRoute');
-const sseRoutes = require('./routes/sseRoutes');
+const auditRoutes     = require('./routes/auditRoutes');
+const evaluateRoute   = require('./routes/evaluateRoute');
+const sseRoutes       = require('./routes/sseRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 const app = express();
 
@@ -33,8 +34,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/flags', flagRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/audit', auditRoutes);
-app.use('/api/evaluate', evaluateRoute);
-app.use('/sse', sseRoutes);
+app.use('/api/evaluate',   evaluateRoute);
+app.use('/api/analytics',  analyticsRoutes);
+app.use('/sse',            sseRoutes);
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
 app.use((req, res, next) => {

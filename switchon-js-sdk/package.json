@@ -1,0 +1,19 @@
+{
+  "name": "@switchon/js-sdk",
+  "version": "1.0.0",
+  "description": "JavaScript SDK for SwitchOn feature flag management. Real-time flag evaluation with SSE, user targeting, and multivariate support.",
+  "main": "index.js",
+  "module": "index.js",
+  "browser": "index.js",
+  "keywords": ["feature-flags", "feature-toggles", "a/b-testing", "canary-deployment", "switchon"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/switchon"
+  },
+  "scripts": {
+    "test": "echo \"Tests: npm run test from root\""
+  },
+  "peerDependencies": {},
+  "engines": { "node": ">=14" }
+}

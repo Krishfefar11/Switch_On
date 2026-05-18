@@ -3,8 +3,16 @@ const path = require('path');
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
-const app  = express();
+const app    = express();
 const TARGET = process.env.API_URL || 'http://localhost:5000';
+
+// ── Config endpoint — exposes safe public config to the browser client
+app.get('/config.json', (req, res) => {
+  res.json({
+    dashboardUrl: process.env.DASHBOARD_URL || '',
+    environment:  process.env.FLAG_ENVIRONMENT || 'development',
+  });
+});
 
 app.use(express.static(path.join(__dirname, '../public')));
 

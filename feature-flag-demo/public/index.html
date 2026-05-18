@@ -3,151 +3,350 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NotesApp — Feature Flag Demo</title>
+  <title>ShopOn — Feature Flag Demo · SwitchOn</title>
   <link rel="stylesheet" href="styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" id="custom-font-link" disabled>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-<body class="theme-light">
-<div class="app">
+<body>
 
-  <!-- ── Sidebar ──────────────────────── -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <div class="brand-logo">
-        <div class="brand-icon">📝</div>
-        <div>
-          <div class="brand-name">NotesApp</div>
-          <div class="brand-sub">Feature Flag Demo</div>
+<!-- ── SwitchOn Top Bar ───────────────────────────────────────────────── -->
+<div class="so-bar" id="so-bar">
+  <div class="so-bar-left">
+    <div class="so-logo">
+      <div class="so-logo-icon">⚡</div>
+      <span class="so-logo-text">SwitchOn</span>
+    </div>
+    <div class="so-divider"></div>
+    <span class="so-tagline">Every feature below is controlled by a live feature flag</span>
+  </div>
+  <div class="so-bar-right">
+    <div class="sse-status" id="sse-status">
+      <div class="sse-dot"></div>
+      <span>Connecting…</span>
+    </div>
+    <button class="so-how-btn" id="so-how-btn" onclick="toggleGuide()">
+      <span>How it works</span>
+      <span id="so-chevron">▾</span>
+    </button>
+    <a href="#" class="so-dashboard-btn" id="so-dashboard-link" target="_blank" rel="noopener noreferrer">
+      Open Dashboard ↗
+    </a>
+  </div>
+</div>
+
+<!-- ── Instruction Guide Panel ───────────────────────────────────────── -->
+<div class="so-guide" id="so-guide" style="display:none;">
+  <div class="so-guide-inner">
+    <div class="so-guide-title">🎯 Try it yourself — takes 30 seconds</div>
+    <div class="so-guide-steps">
+      <div class="so-step">
+        <div class="so-step-num">1</div>
+        <div class="so-step-body">
+          <div class="so-step-title">Open the SwitchOn Dashboard</div>
+          <div class="so-step-desc">Log in with <code>admin@demo.com</code> / <code>demo1234</code></div>
         </div>
       </div>
-      <!-- Search (feature-search-bar flag) -->
-      <div id="search-container" class="hidden">
-        <input type="text" id="search-input" placeholder="🔍 Search notes…">
+      <div class="so-step-arrow">→</div>
+      <div class="so-step">
+        <div class="so-step-num">2</div>
+        <div class="so-step-body">
+          <div class="so-step-title">Toggle any flag</div>
+          <div class="so-step-desc">Try <code>feature-hero-banner</code> or <code>feature-buy-now</code></div>
+        </div>
+      </div>
+      <div class="so-step-arrow">→</div>
+      <div class="so-step">
+        <div class="so-step-num">3</div>
+        <div class="so-step-body">
+          <div class="so-step-title">Watch this page react instantly</div>
+          <div class="so-step-desc">No reload. Powered by Server-Sent Events (SSE).</div>
+        </div>
       </div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Views</div>
-      <div class="nav-item active">
-        <span class="nav-icon">📋</span> All Notes
-      </div>
-      <div id="trash-link" class="nav-item hidden">
-        <span class="nav-icon">🗑️</span> Deleted Notes
-      </div>
-      <div id="cloud-sync-btn" class="nav-item hidden">
-        <span class="nav-icon">☁️</span> Cloud Sync
-        <span class="badge badge-pro">PRO</span>
-      </div>
-    </div>
-
-    <!-- Live flag status panel -->
-    <div class="flag-status-panel" style="flex:1; overflow:hidden; display:flex; flex-direction:column;">
-      <div class="sidebar-section-label flag-status-title">🚩 Live Flags</div>
-      <div class="flag-status-list" id="flag-status-list">
-        <div style="font-size:0.68rem; color:rgba(255,255,255,0.2); padding: 0.25rem 0.5rem;">Connecting…</div>
+    <div class="so-guide-flags">
+      <div class="so-guide-flags-title">Impactful flags to try:</div>
+      <div class="so-flag-chips">
+        <span class="so-chip">🎯 feature-hero-banner</span>
+        <span class="so-chip">⚡ feature-flash-deal</span>
+        <span class="so-chip">🛒 feature-buy-now</span>
+        <span class="so-chip">💳 feature-emi-options</span>
+        <span class="so-chip">❤️ feature-wishlist</span>
+        <span class="so-chip">🌟 feature-recommendations</span>
+        <span class="so-chip">⭐ feature-reviews</span>
+        <span class="so-chip">🌙 theme-dark-mode</span>
+        <span class="so-chip">🎁 feature-promo-banner</span>
+        <span class="so-chip">🚚 feature-free-delivery</span>
+        <span class="so-chip">💎 feature-loyalty-points</span>
+        <span class="so-chip">🔍 feature-search-bar</span>
       </div>
     </div>
+  </div>
+</div>
 
-    <div class="sidebar-footer">
-      <div class="sse-status" id="sse-status">
-        <div class="sse-dot"></div>
-        <span>Connecting to live stream…</span>
+<!-- ── ShopOn Navbar ───────────────────────────────────────────────────── -->
+<nav class="shop-nav" id="shop-nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <div class="shop-logo">
+        <span class="shop-logo-icon">🛍️</span>
+        <span class="shop-logo-text">ShopOn</span>
+      </div>
+      <div class="nav-links">
+        <span class="nav-link active">All</span>
+        <span class="nav-link">Electronics</span>
+        <span class="nav-link">Clothing</span>
+        <span class="nav-link">Footwear</span>
+        <span class="nav-link">Accessories</span>
       </div>
     </div>
-  </aside>
-
-  <!-- ── Main ─────────────────────────── -->
-  <div class="main">
-    <!-- Topbar -->
-    <header class="topbar">
-      <div class="topbar-title">📝 All Notes</div>
-      <div class="topbar-actions">
-        <span id="word-count" class="hidden">0 words</span>
-        <span id="auto-save-indicator" class="hidden">Saved ✓</span>
-        <button id="export-pdf-btn" class="btn btn-outline btn-sm hidden">📄 Export PDF</button>
-        <button id="share-notes-btn" class="btn btn-outline btn-sm hidden">🔗 Share</button>
-        <button class="btn btn-primary btn-sm" onclick="createNewNote()">+ New Note</button>
+    <div class="nav-center" id="search-container" style="display:none;">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search products, brands…">
       </div>
-    </header>
+    </div>
+    <div class="nav-right">
+      <div class="loyalty-badge" id="loyalty-badge" style="display:none;">
+        <span class="loyalty-icon">💎</span>
+        <div class="loyalty-info">
+          <div class="loyalty-label">Your Points</div>
+          <div class="loyalty-value">4,820 pts</div>
+        </div>
+      </div>
+      <button class="nav-icon-btn" title="Wishlist">
+        <span>❤️</span>
+        <span class="badge-count" id="wishlist-count" style="display:none;">3</span>
+      </button>
+      <button class="nav-icon-btn cart-btn" title="Cart" onclick="showToast('Cart opened!')">
+        <span>🛒</span>
+        <span class="badge-count" id="cart-count">2</span>
+      </button>
+      <div class="user-switcher" id="user-switcher">
+        <!-- rendered by app.js renderUserSwitcher() -->
+      </div>
+    </div>
+  </div>
+</nav>
 
-    <div class="content-area">
-      <!-- Editor -->
+<!-- ── Main App ────────────────────────────────────────────────────────── -->
+<div class="shop-app" id="shop-app">
+
+  <!-- Promo Banner (flag-controlled) -->
+  <div class="promo-banner" id="promo-banner" style="display:none;">
+    <span class="promo-tag">🎁 LIMITED TIME</span>
+    Use code <strong>SHOPON20</strong> for 20% off your first order &nbsp;·&nbsp; Free shipping on orders over $50
+    <button class="promo-close" onclick="this.parentElement.style.display='none'">✕</button>
+  </div>
+
+  <!-- ── Hero Banner (flag-controlled) ────────────────────────────────── -->
+  <section class="hero-section" id="hero-section" style="display:none;">
+    <div class="hero-content">
+      <div class="hero-tag">⚡ MEGA SALE — UP TO 60% OFF</div>
+      <h1 class="hero-title">The Biggest Sale<br>of the Year</h1>
+      <p class="hero-subtitle">Shop top brands across electronics, fashion &amp; accessories.</p>
+      <div class="hero-cta">
+        <button class="btn-hero-primary" onclick="showToast('Browsing all deals!')">Shop Now →</button>
+        <button class="btn-hero-secondary" onclick="showToast('Viewing deals page')">View All Deals</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-float-card card1">
+        <span class="hf-emoji">💻</span>
+        <div class="hf-info"><div class="hf-name">MacBook Pro</div><div class="hf-price">$1,299</div></div>
+      </div>
+      <div class="hero-float-card card2">
+        <span class="hf-emoji">📱</span>
+        <div class="hf-info"><div class="hf-name">iPhone 15 Pro</div><div class="hf-price">$999</div></div>
+      </div>
+      <div class="hero-float-card card3">
+        <span class="hf-emoji">🎧</span>
+        <div class="hf-info"><div class="hf-name">Sony XM5</div><div class="hf-price">$279</div></div>
+      </div>
+      <div class="hero-badge">
+        <div class="hero-badge-num">60%</div>
+        <div class="hero-badge-text">OFF</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Flash Deals Strip (flag-controlled) ──────────────────────────── -->
+  <section class="flash-section" id="flash-section" style="display:none;">
+    <div class="flash-header">
+      <span class="flash-title">⚡ Flash Deals</span>
+      <div class="flash-timer">
+        <span class="timer-label">Ends in</span>
+        <div class="timer-blocks">
+          <span class="timer-block" id="flash-h">02</span>
+          <span class="timer-sep">:</span>
+          <span class="timer-block" id="flash-m">47</span>
+          <span class="timer-sep">:</span>
+          <span class="timer-block" id="flash-s">33</span>
+        </div>
+      </div>
+      <span class="flash-see-all">See all →</span>
+    </div>
+    <div class="flash-items">
+      <div class="flash-item">
+        <div class="flash-emoji">🎧</div>
+        <div class="flash-item-name">Sony WH-1000XM5</div>
+        <div class="flash-item-price">$279 <span class="flash-original">$349</span></div>
+        <div class="flash-progress-bar"><div class="flash-progress-fill" style="width:73%"></div></div>
+        <div class="flash-stock">73% sold</div>
+      </div>
+      <div class="flash-item">
+        <div class="flash-emoji">📺</div>
+        <div class="flash-item-name">Samsung 65" 4K TV</div>
+        <div class="flash-item-price">$799 <span class="flash-original">$1,199</span></div>
+        <div class="flash-progress-bar"><div class="flash-progress-fill" style="width:55%"></div></div>
+        <div class="flash-stock">55% sold</div>
+      </div>
+      <div class="flash-item">
+        <div class="flash-emoji">💻</div>
+        <div class="flash-item-name">MacBook Air M2</div>
+        <div class="flash-item-price">$1,099 <span class="flash-original">$1,299</span></div>
+        <div class="flash-progress-bar"><div class="flash-progress-fill" style="width:89%"></div></div>
+        <div class="flash-stock">89% sold</div>
+      </div>
+      <div class="flash-item">
+        <div class="flash-emoji">👟</div>
+        <div class="flash-item-name">Nike Air Max 270</div>
+        <div class="flash-item-price">$99 <span class="flash-original">$160</span></div>
+        <div class="flash-progress-bar"><div class="flash-progress-fill" style="width:41%"></div></div>
+        <div class="flash-stock">41% sold</div>
+      </div>
+      <div class="flash-item">
+        <div class="flash-emoji">📱</div>
+        <div class="flash-item-name">iPad Pro 12.9"</div>
+        <div class="flash-item-price">$899 <span class="flash-original">$1,099</span></div>
+        <div class="flash-progress-bar"><div class="flash-progress-fill" style="width:62%"></div></div>
+        <div class="flash-stock">62% sold</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Products Grid ─────────────────────────────────────────────────── -->
+  <section class="products-section">
+    <div class="products-header">
       <div>
-        <div class="card editor-card">
-          <div class="card-header">✏️ New Note</div>
-          <div class="editor-inputs">
-            <input type="text" id="note-title" placeholder="Note title…">
-
-            <!-- Rich text toolbar (feature-rich-text flag) -->
-            <div id="rich-text-toolbar" class="toolbar hidden">
-              <button class="toolbar-btn"><b>B</b></button>
-              <button class="toolbar-btn"><i>I</i></button>
-              <button class="toolbar-btn"><u>U</u></button>
-              <button class="toolbar-btn" style="font-size:0.7rem;">H1</button>
-              <button class="toolbar-btn" style="font-size:0.7rem;">H2</button>
-              <span style="width:1px;background:var(--border);margin:0 0.25rem;align-self:stretch;"></span>
-              <button class="toolbar-btn">🔗</button>
-              <button class="toolbar-btn">📷</button>
-            </div>
-
-            <textarea id="note-content" placeholder="Start writing your note here…" rows="6"></textarea>
-
-            <div class="editor-footer">
-              <div class="editor-footer-left">
-                <button id="attach-img-btn" class="icon-btn hidden">🖼️ Image</button>
-                <button id="voice-note-btn" class="icon-btn hidden">🎤 Voice</button>
-                <div id="tags-container" class="hidden">
-                  <input type="text" placeholder="#tag" class="tag-input">
-                </div>
-                <div class="reminder-picker">
-                  <span>⏰</span>
-                  <select id="reminder-select">
-                    <option value="0">No reminder</option>
-                    <option value="5000">In 5 seconds</option>
-                    <option value="10000">In 10 seconds</option>
-                  </select>
-                </div>
-              </div>
-              <div class="editor-footer-right">
-                <button class="btn btn-primary" onclick="saveNote()">Save Note</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <h2 class="section-title">Featured Products</h2>
+        <p class="section-sub" id="products-sub">Showing all products</p>
       </div>
-
-      <!-- Notes list -->
-      <div class="notes-panel">
-        <div class="card" style="overflow:hidden;">
-          <div class="card-header">
-            Your Notes
-            <span class="notes-count" id="notes-count">0 notes</span>
-          </div>
-          <div id="notes-grid">
-            <div class="note-empty">
-              <div class="note-empty-icon">📭</div>
-              <div>No notes yet — write your first one!</div>
-            </div>
-          </div>
-        </div>
+      <div class="filter-pills" id="filter-pills">
+        <button class="pill active" onclick="filterProducts('all', this)">All</button>
+        <button class="pill" onclick="filterProducts('Electronics', this)">Electronics</button>
+        <button class="pill" onclick="filterProducts('Clothing', this)">Clothing</button>
+        <button class="pill" onclick="filterProducts('Footwear', this)">Footwear</button>
+        <button class="pill" onclick="filterProducts('Accessories', this)">Accessories</button>
       </div>
+    </div>
+    <div class="products-grid" id="products-grid">
+      <!-- Rendered by JS -->
+    </div>
+  </section>
+
+  <!-- ── Recommendations Section (flag-controlled) ─────────────────────── -->
+  <section class="recommendations-section" id="recommendations-section" style="display:none;">
+    <h2 class="section-title">✨ Recommended for You</h2>
+    <p class="section-sub">Based on your recent activity · Personalized by AI</p>
+    <div class="reco-grid" id="reco-grid">
+      <!-- Rendered by JS -->
+    </div>
+  </section>
+
+  <!-- ── Reviews Section (flag-controlled) ────────────────────────────── -->
+  <section class="reviews-section" id="reviews-section" style="display:none;">
+    <h2 class="section-title">⭐ Customer Reviews</h2>
+    <p class="section-sub">What shoppers are saying this week</p>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background:#6366f1;">A</div>
+          <div>
+            <div class="review-name">Aarav Mehta</div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+          <div class="review-product-tag">MacBook Pro</div>
+        </div>
+        <p class="review-text">"Absolutely worth every penny. The M3 chip handles everything I throw at it — video editing, 3D rendering, you name it. Battery lasts all day."</p>
+        <div class="review-meta">Verified Purchase · 2 days ago</div>
+      </div>
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background:#ec4899;">P</div>
+          <div>
+            <div class="review-name">Priya Sharma</div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+          <div class="review-product-tag">Sony WH-1000XM5</div>
+        </div>
+        <p class="review-text">"Best noise-cancelling headphones I've owned. I can work in a coffee shop and hear absolutely nothing outside. Game changer for remote work."</p>
+        <div class="review-meta">Verified Purchase · 5 days ago</div>
+      </div>
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background:#f59e0b;">R</div>
+          <div>
+            <div class="review-name">Rohan Verma</div>
+            <div class="review-stars">★★★★☆</div>
+          </div>
+          <div class="review-product-tag">Nike Air Max 270</div>
+        </div>
+        <p class="review-text">"Super comfortable for daily wear. The Air cushioning makes a noticeable difference on long walks. Sizing runs slightly large — go half a size down."</p>
+        <div class="review-meta">Verified Purchase · 1 week ago</div>
+      </div>
+      <div class="review-card">
+        <div class="review-header">
+          <div class="review-avatar" style="background:#10b981;">S</div>
+          <div>
+            <div class="review-name">Sana Khan</div>
+            <div class="review-stars">★★★★★</div>
+          </div>
+          <div class="review-product-tag">iPhone 15 Pro</div>
+        </div>
+        <p class="review-text">"The camera is on another level. The titanium build feels premium. Action button is surprisingly useful once you set it up. Switched from Android and never looking back."</p>
+        <div class="review-meta">Verified Purchase · 3 days ago</div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- end .shop-app -->
+
+<!-- ── Flag Status Widget (floating) ─────────────────────────────────── -->
+<div class="flag-widget" id="flag-widget">
+  <div class="flag-widget-header" onclick="toggleFlagWidget()">
+    <span>🚩 Live Flags</span>
+    <span id="flag-widget-chevron">▴</span>
+  </div>
+  <div class="flag-widget-body" id="flag-widget-body">
+    <div class="flag-status-list" id="flag-status-list">
+      <div class="flag-status-loading">Connecting…</div>
     </div>
   </div>
 </div>
 
-<!-- Reminder modal -->
-<div id="reminder-modal" class="modal-overlay hidden">
-  <div class="modal-box">
-    <h2>⏰ Reminder!</h2>
-    <p id="reminder-text">Your note reminder is ringing.</p>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="dismissReminder()">Dismiss</button>
-      <button id="snooze-btn" class="btn btn-outline hidden" onclick="snoozeReminder()">Snooze 5s</button>
-      <button id="email-sync-btn" class="btn btn-outline hidden">✉️ Send to Email</button>
-    </div>
-  </div>
+<!-- ── Cart Toast ─────────────────────────────────────────────────────── -->
+<div class="cart-toast" id="cart-toast" style="display:none;">
+  <span class="cart-toast-icon">✅</span>
+  <span id="cart-toast-text">Added to cart!</span>
 </div>
 
+<script>
+  function toggleGuide() {
+    const guide   = document.getElementById('so-guide');
+    const chevron = document.getElementById('so-chevron');
+    const open    = guide.style.display === 'none' || guide.style.display === '';
+    guide.style.display = open ? 'block' : 'none';
+    chevron.textContent = open ? '▴' : '▾';
+  }
+
+  function toggleFlagWidget() {
+    const body    = document.getElementById('flag-widget-body');
+    const chevron = document.getElementById('flag-widget-chevron');
+    const open    = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    chevron.textContent = open ? '▾' : '▴';
+  }
+</script>
 <script src="app.js"></script>
 </body>
 </html>
