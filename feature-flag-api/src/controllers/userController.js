@@ -3,13 +3,19 @@ const User = require('../models/User');
 const getUsers = async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const users = await User.find()
+
+    // Scope to current user's organization — admins only see their own org's members
+    const orgFilter = req.user.organizationId
+      ? { organizationId: req.user.organizationId }
+      : { _id: req.user._id }; // fallback: show only self if no org
+
+    const users = await User.find(orgFilter)
       .select('-passwordHash')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
-    const total = await User.countDocuments();
+    const total = await User.countDocuments(orgFilter);
     res.json({ users, total, page: parseInt(page), pages: Math.ceil(total / limit) });
   } catch (error) {
     next(error);

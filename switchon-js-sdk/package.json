@@ -1,19 +1,72 @@
 {
   "name": "@switchon/js-sdk",
   "version": "1.0.0",
-  "description": "JavaScript SDK for SwitchOn feature flag management. Real-time flag evaluation with SSE, user targeting, and multivariate support.",
-  "main": "index.js",
-  "module": "index.js",
-  "browser": "index.js",
-  "keywords": ["feature-flags", "feature-toggles", "a/b-testing", "canary-deployment", "switchon"],
+  "description": "JavaScript SDK for SwitchOn feature flag management. Browser + Node.js support with real-time SSE updates, user targeting, and React hooks.",
+  "author": "SwitchOn",
   "license": "MIT",
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "a/b-testing",
+    "canary-deployment",
+    "gradual-rollout",
+    "switchon",
+    "react-hooks",
+    "sse",
+    "real-time"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/yourusername/switchon"
   },
-  "scripts": {
-    "test": "echo \"Tests: npm run test from root\""
+  "bugs": {
+    "url": "https://github.com/yourusername/switchon/issues"
   },
-  "peerDependencies": {},
-  "engines": { "node": ">=14" }
+
+  "main":    "src/browser.js",
+  "module":  "src/browser.js",
+  "browser": "src/browser.js",
+  "types":   "types/index.d.ts",
+
+  "exports": {
+    ".": {
+      "browser": "./src/browser.js",
+      "default": "./src/browser.js"
+    },
+    "./node": {
+      "node":    "./src/node.js",
+      "default": "./src/node.js"
+    },
+    "./react": {
+      "browser": "./src/react.js",
+      "default": "./src/react.js"
+    }
+  },
+
+  "files": [
+    "src/",
+    "types/",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "test":           "node test/sdk.test.js",
+    "prepublishOnly": "npm test"
+  },
+
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+
+  "engines": {
+    "node": ">=14.0.0"
+  },
+
+  "sideEffects": false
 }

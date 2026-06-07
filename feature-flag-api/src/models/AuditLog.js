@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const AuditLogSchema = new mongoose.Schema({
   userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  projectId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
   action:       { type: String, enum: ['CREATE','UPDATE','DELETE','TOGGLE'], required: true },
   resourceType: { type: String, default: 'FeatureFlag' },
   resourceId:   { type: mongoose.Schema.Types.ObjectId },

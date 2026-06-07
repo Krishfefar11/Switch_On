@@ -12,27 +12,27 @@ let DEMO_USERS = [];
 
 // ── Products Data ─────────────────────────────────────────────────────
 const PRODUCTS = [
-  { id: 1,  name: 'MacBook Pro 14"',    category: 'Electronics', price: 1299, original: 1499, rating: 4.8, reviews: 2847,  emoji: '💻', bg: 'linear-gradient(135deg,#1d1d1f,#3d3d3d)', badge: 'Best Seller', badgeClass: 'best-seller', emi: 108 },
-  { id: 2,  name: 'Nike Air Max 270',   category: 'Footwear',    price: 129,  original: 160,  rating: 4.6, reviews: 5231,  emoji: '👟', bg: 'linear-gradient(135deg,#ff6b35,#ff9a6c)', badge: 'New',         badgeClass: 'new',         emi: null },
-  { id: 3,  name: 'Sony WH-1000XM5',   category: 'Electronics', price: 279,  original: 349,  rating: 4.9, reviews: 12043, emoji: '🎧', bg: 'linear-gradient(135deg,#2d2d2d,#555)',     badge: 'Top Rated',  badgeClass: 'top-rated',   emi: 23 },
-  { id: 4,  name: 'Adidas Ultraboost',  category: 'Footwear',    price: 149,  original: 190,  rating: 4.5, reviews: 3812,  emoji: '🥾', bg: 'linear-gradient(135deg,#1a1a2e,#16213e)', badge: null,         badgeClass: '',            emi: null },
-  { id: 5,  name: 'iPhone 15 Pro',      category: 'Electronics', price: 999,  original: 1099, rating: 4.7, reviews: 8762,  emoji: '📱', bg: 'linear-gradient(135deg,#c8b8a2,#a89683)', badge: 'Hot',         badgeClass: '',            emi: 83 },
-  { id: 6,  name: "Levi's 511 Slim",    category: 'Clothing',    price: 59,   original: 79,   rating: 4.3, reviews: 3201,  emoji: '👖', bg: 'linear-gradient(135deg,#1a5276,#21618c)', badge: null,         badgeClass: '',            emi: null },
-  { id: 7,  name: 'Samsung 65" 4K TV',  category: 'Electronics', price: 799,  original: 1199, rating: 4.5, reviews: 4521,  emoji: '📺', bg: 'linear-gradient(135deg,#2c3e50,#34495e)', badge: 'Deal',        badgeClass: '',            emi: 66 },
-  { id: 8,  name: 'Ray-Ban Wayfarers',  category: 'Accessories', price: 149,  original: 179,  rating: 4.6, reviews: 1876,  emoji: '🕶️', bg: 'linear-gradient(135deg,#1a1a1a,#333)',    badge: null,         badgeClass: '',            emi: null },
-  { id: 9,  name: 'Uniqlo Fleece',      category: 'Clothing',    price: 49,   original: 69,   rating: 4.4, reviews: 2190,  emoji: '🧥', bg: 'linear-gradient(135deg,#744210,#92400e)', badge: null,         badgeClass: '',            emi: null },
-  { id: 10, name: 'iPad Air 5',         category: 'Electronics', price: 599,  original: 699,  rating: 4.6, reviews: 6344,  emoji: '📲', bg: 'linear-gradient(135deg,#1d4ed8,#2563eb)', badge: null,         badgeClass: '',            emi: 50 },
-  { id: 11, name: 'Fossil Smartwatch',  category: 'Accessories', price: 199,  original: 249,  rating: 4.2, reviews: 987,   emoji: '⌚', bg: 'linear-gradient(135deg,#78350f,#92400e)', badge: null,         badgeClass: '',            emi: null },
-  { id: 12, name: 'New Balance 990',    category: 'Footwear',    price: 175,  original: 185,  rating: 4.8, reviews: 4230,  emoji: '👞', bg: 'linear-gradient(135deg,#374151,#4b5563)', badge: 'Best Seller', badgeClass: 'best-seller', emi: null },
+  { id: 1,  name: 'Air Flux Pro',          category: 'Footwear',    price: 160,  original: 200,  rating: 4.9, reviews: 8241,  emoji: '👟', bg: 'linear-gradient(135deg,#0a0a0a,#1a1a1a)', badge: 'Best Seller', badgeClass: '',      emi: 14  },
+  { id: 2,  name: 'Speed Force Runner',    category: 'Footwear',    price: 140,  original: 175,  rating: 4.7, reviews: 5312,  emoji: '🏃', bg: 'linear-gradient(135deg,#111,#2a2a2a)',     badge: 'New',         badgeClass: 'new-badge',  emi: null },
+  { id: 3,  name: 'Cloud Stride X',        category: 'Footwear',    price: 120,  original: 150,  rating: 4.6, reviews: 3890,  emoji: '🥾', bg: 'linear-gradient(135deg,#1a1a2e,#0f3460)', badge: null,          badgeClass: '',      emi: null },
+  { id: 4,  name: 'Court Elite Low',       category: 'Footwear',    price: 95,   original: 120,  rating: 4.4, reviews: 2107,  emoji: '👞', bg: 'linear-gradient(135deg,#1e293b,#334155)', badge: 'Sale',        badgeClass: 'sale-badge', emi: null },
+  { id: 5,  name: 'Wind Runner Jacket',    category: 'Apparel',     price: 130,  original: 170,  rating: 4.8, reviews: 4521,  emoji: '🧥', bg: 'linear-gradient(135deg,#0f0f0f,#282828)', badge: 'Top Rated',   badgeClass: '',      emi: 11  },
+  { id: 6,  name: 'Performance Hoodie',    category: 'Apparel',     price: 85,   original: 110,  rating: 4.5, reviews: 6703,  emoji: '🥷', bg: 'linear-gradient(135deg,#1c1c1c,#2d2d2d)', badge: null,          badgeClass: '',      emi: null },
+  { id: 7,  name: 'Pro Training Tee',      category: 'Apparel',     price: 45,   original: 60,   rating: 4.3, reviews: 9210,  emoji: '👕', bg: 'linear-gradient(135deg,#0d1b2a,#1b263b)', badge: null,          badgeClass: '',      emi: null },
+  { id: 8,  name: 'Compression Tights',   category: 'Apparel',     price: 65,   original: 85,   rating: 4.6, reviews: 3341,  emoji: '🩱', bg: 'linear-gradient(135deg,#111,#1e1e1e)',     badge: 'New',         badgeClass: 'new-badge',  emi: null },
+  { id: 9,  name: 'Apex Speed Cap',        category: 'Accessories', price: 35,   original: 45,   rating: 4.7, reviews: 7823,  emoji: '🧢', bg: 'linear-gradient(135deg,#0a0a0a,#222)',     badge: null,          badgeClass: '',      emi: null },
+  { id: 10, name: 'Pro Gym Bag 30L',       category: 'Accessories', price: 80,   original: 105,  rating: 4.5, reviews: 2985,  emoji: '🎒', bg: 'linear-gradient(135deg,#1a1a1a,#333)',     badge: null,          badgeClass: '',      emi: null },
+  { id: 11, name: 'Hydro Flask 32oz',      category: 'Accessories', price: 42,   original: 55,   rating: 4.8, reviews: 11200, emoji: '🫙', bg: 'linear-gradient(135deg,#0f2027,#203a43)',  badge: 'Best Seller', badgeClass: '',      emi: null },
+  { id: 12, name: 'Resistance Band Kit',   category: 'Accessories', price: 38,   original: 50,   rating: 4.4, reviews: 4102,  emoji: '💪', bg: 'linear-gradient(135deg,#1a1a2e,#16213e)', badge: 'Sale',        badgeClass: 'sale-badge', emi: null },
 ];
 
 const RECO_PRODUCTS = [
-  { name: 'AirPods Pro 2',     emoji: '🎵', price: '$249', match: '98% match for you' },
-  { name: 'Apple Watch S9',    emoji: '⌚', price: '$399', match: '95% match for you' },
-  { name: 'Logitech MX Keys',  emoji: '⌨️', price: '$109', match: '91% match for you' },
-  { name: 'PS5 DualSense',     emoji: '🎮', price: '$69',  match: '88% match for you' },
-  { name: 'Kindle Paperwhite', emoji: '📚', price: '$139', match: '85% match for you' },
-  { name: 'GoPro Hero 12',     emoji: '📷', price: '$399', match: '82% match for you' },
+  { name: 'Trail Blazer Pro',   emoji: '🏔️', price: '$180', match: '98% match' },
+  { name: 'Run Sock 6-Pack',    emoji: '🧦', price: '$28',  match: '96% match' },
+  { name: 'Speed Belt Bag',     emoji: '👝', price: '$45',  match: '93% match' },
+  { name: 'Recovery Slides',    emoji: '🩴', price: '$55',  match: '90% match' },
+  { name: 'Sports Sunglasses',  emoji: '🕶️', price: '$70',  match: '87% match' },
+  { name: 'Volt Energy Gel',    emoji: '⚡', price: '$22',  match: '84% match' },
 ];
 
 // ── App State ─────────────────────────────────────────────────────────
@@ -72,27 +72,43 @@ function isOn(name) {
   return true; // flag not in dashboard → show by default
 }
 
-// ── Per-user evaluation via API ───────────────────────────────────────
-async function evaluateFlag(flagName) {
-  try {
-    const u    = currentUser();
-    const attrs = encodeURIComponent(JSON.stringify({ plan: u.plan, country: u.country, email: u.email }));
-    const r    = await fetch(`/api/evaluate/${flagName}?userId=${encodeURIComponent(u.id)}&environment=${_env}&userAttributes=${attrs}`);
-    const d    = await r.json();
-    return d.result ? d.result.enabled : d.enabled;
-  } catch {
-    // Fall back to global enabled state on network error
-    return _flags[flagName]?.enabled ?? true;
-  }
-}
-
+// ── Per-user evaluation via batch API ────────────────────────────────
+// One POST /api/evaluate/batch call instead of N individual GET requests.
+// This prevents rate-limit exhaustion on the split-screen view where
+// multiple iframes each evaluate all flags simultaneously.
 async function evaluateAllFlags() {
-  const names   = Object.keys(_flags);
+  const names = Object.keys(_flags);
   if (names.length === 0) return;
 
-  // Evaluate all flags in parallel (not sequential — key performance point)
-  const results = await Promise.all(names.map(name => evaluateFlag(name)));
-  names.forEach((name, i) => { _evaluated[name] = results[i]; });
+  try {
+    const u = currentUser();
+    const r = await fetch('/api/evaluate/batch', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        flags:          names,
+        userId:         u.id,
+        environment:    _env,
+        userAttributes: { plan: u.plan, country: u.country || '', email: u.email },
+      }),
+    });
+
+    if (!r.ok) throw new Error(`batch ${r.status}`);
+    const d = await r.json();
+
+    names.forEach(name => {
+      const res = d.results?.[name];
+      if (!res || !res.found) {
+        _evaluated[name] = _flags[name]?.enabled ?? true;
+        return;
+      }
+      // Boolean flags → use enabled; multivariate → use value
+      _evaluated[name] = res.type === 'boolean' ? res.enabled : res.value;
+    });
+  } catch {
+    // Network/rate error — fall back to the global enabled state from SSE snapshot
+    names.forEach(name => { _evaluated[name] = _flags[name]?.enabled ?? true; });
+  }
 
   applyFlags();
   renderFlagPanel();
@@ -129,8 +145,10 @@ async function startup() {
   try { cfg = await (await fetch('/config.json')).json(); } catch {}
 
   if (cfg.dashboardUrl) {
-    const link = document.getElementById('so-dashboard-link');
-    if (link) link.href = cfg.dashboardUrl;
+    const link   = document.getElementById('so-dashboard-link');
+    const mlink  = document.getElementById('mobile-dashboard-link');
+    if (link)  link.href  = cfg.dashboardUrl;
+    if (mlink) mlink.href = cfg.dashboardUrl;
   }
   _env = cfg.environment || 'development';
 
@@ -382,28 +400,28 @@ function renderProducts(list) {
     return `
     <div class="product-card">
       <div class="product-img" style="background:${p.bg};">
-        <span>${p.emoji}</span>
+        <span class="product-img-emoji">${p.emoji}</span>
         ${p.badge ? `<span class="product-badge ${p.badgeClass}">${p.badge}</span>` : ''}
         <button class="wishlist-btn ${wished ? 'wishlisted' : ''}"
           style="display:${showWish ? 'flex' : 'none'}"
           onclick="toggleWishlist(event,${p.id})">${wished ? '❤️' : '🤍'}</button>
       </div>
       <div class="product-info">
-        <div class="product-name">${p.name}</div>
         <div class="product-category">${p.category}</div>
+        <div class="product-name">${p.name}</div>
         <div class="product-rating">
           <span class="stars">${stars}</span>
-          <span class="rating-count">${p.rating} · ${p.reviews.toLocaleString()} reviews</span>
+          <span class="rating-count">${p.rating} · ${p.reviews.toLocaleString()}</span>
         </div>
         <div class="product-price-row">
           <span class="product-price">$${p.price.toLocaleString()}</span>
           <span class="product-original">$${p.original.toLocaleString()}</span>
           <span class="product-discount">-${discount}%</span>
         </div>
-        ${showEmi && p.emi ? `<div class="product-emi" style="display:block">💳 EMI from $${p.emi}/mo · 0% interest</div>` : ''}
-        ${showDeliv ? `<div class="product-delivery" style="display:block">🚚 Free Delivery · Ships in 2 days</div>` : ''}
+        ${showEmi && p.emi ? `<div class="product-emi" style="display:block">0% EMI from $${p.emi}/mo</div>` : ''}
+        ${showDeliv ? `<div class="product-delivery" style="display:block">✓ Free delivery · Ships in 2 days</div>` : ''}
         <div class="product-actions">
-          <button class="btn-add-cart" onclick="addToCart('${p.name}')">Add to Cart</button>
+          <button class="btn-add-cart" onclick="addToCart('${p.name}')">Add to Bag</button>
           <button class="btn-buy-now" style="display:${showBuyNow ? 'block' : 'none'}"
             onclick="buyNow('${p.name}')">Buy Now</button>
         </div>
@@ -500,9 +518,12 @@ function startHeroCountdown() {
     const h = Math.floor(heroSecs / 3600);
     const m = Math.floor((heroSecs % 3600) / 60);
     const s = heroSecs % 60;
-    const el = document.getElementById('hero-countdown');
-    if (el) el.textContent =
-      `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    const eh = document.getElementById('hero-countdown-h');
+    const em = document.getElementById('hero-countdown-m');
+    const es = document.getElementById('hero-countdown-s');
+    if (eh) eh.textContent = String(h).padStart(2, '0');
+    if (em) em.textContent = String(m).padStart(2, '0');
+    if (es) es.textContent = String(s).padStart(2, '0');
   }
   tick();
   setInterval(tick, 1000);

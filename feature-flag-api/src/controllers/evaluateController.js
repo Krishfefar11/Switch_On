@@ -64,7 +64,11 @@ const evaluateFlag = async (req, res, next) => {
 
     if (!userId) return res.status(400).json({ error: 'userId required' });
 
-    const flag = await FeatureFlag.findOne({ name, environment, deletedAt: null });
+    // Scope flag lookup to the project implied by the SDK key (if present)
+    const flagQuery = { name, environment, deletedAt: null };
+    if (req.projectId) flagQuery.projectId = req.projectId;
+
+    const flag = await FeatureFlag.findOne(flagQuery);
     if (!flag) return res.status(404).json({ error: 'Flag not found' });
 
     const result = evaluate(flag, userId, userAttributes);
@@ -73,6 +77,7 @@ const evaluateFlag = async (req, res, next) => {
     FlagImpression.create({
       flagId:         flag._id,
       flagName:       flag.name,
+      projectId:      flag.projectId ?? null,
       userId,
       enabled:        result.enabled,
       value:          result.value,
@@ -94,4 +99,74 @@ const evaluateFlag = async (req, res, next) => {
   }
 };
 
-module.exports = { evaluateFlag, getDemoUsers };
+// POST /api/evaluate/batch
+// Evaluate many flags in one round-trip — used by server-side SDKs.
+const evaluateBatch = async (req, res, next) => {
+  try {
+    const { flags: names = [], userId, environment = 'development' } = req.body;
+    let userAttributes = {};
+    try { userAttributes = req.body.userAttributes ?? {}; } catch {}
+
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    if (!Array.isArray(names) || names.length === 0) {
+      return res.status(400).json({ error: 'flags must be a non-empty array of flag names' });
+    }
+    if (names.length > 100) return res.status(400).json({ error: 'Max 100 flags per batch request' });
+
+    const query = { name: { $in: names }, environment, deletedAt: null };
+    if (req.projectId) query.projectId = req.projectId;
+
+    const flagDocs = await FeatureFlag.find(query).lean();
+    const flagMap  = Object.fromEntries(flagDocs.map(f => [f.name, f]));
+
+    const results = {};
+    const impressions = [];
+
+    for (const name of names) {
+      const flag = flagMap[name];
+      if (!flag) { results[name] = { found: false, enabled: false, value: null }; continue; }
+
+      const result = evaluate(flag, userId, userAttributes);
+      results[name] = {
+        found:    true,
+        type:     flag.type,
+        enabled:  result.enabled,
+        value:    result.value,
+        reason:   result.reason,
+        bucket:   result.bucket,
+      };
+
+      impressions.push({
+        flagId: flag._id, flagName: flag.name, projectId: flag.projectId ?? null,
+        userId, enabled: result.enabled, value: result.value,
+        reason: result.reason, variationIndex: result.variationIndex, environment,
+      });
+    }
+
+    // Log all impressions non-blocking
+    FlagImpression.insertMany(impressions).catch(() => {});
+
+    res.json({ results, userId, environment, evaluated: Object.keys(results).length });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/evaluate/_all?environment=development
+// Used by the JS SDK on init to bulk-load all flags for the project in one call.
+const evaluateAll = async (req, res, next) => {
+  try {
+    const { environment = 'development' } = req.query;
+
+    const query = { deletedAt: null, environment };
+    if (req.projectId) query.projectId = req.projectId;
+
+    const flags = await FeatureFlag.find(query).lean();
+
+    res.json({ flags, count: flags.length, environment });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { evaluateFlag, getDemoUsers, evaluateAll, evaluateBatch };

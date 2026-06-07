@@ -4,9 +4,11 @@ const evaluateController = require('../controllers/evaluateController');
 const { consumerAuth } = require('../middlewares/auth');
 const { evaluateLimiter } = require('../middlewares/rateLimiter');
 
-// Must be declared before /:name to avoid matching "_users" as a flag name
-router.get('/_users', consumerAuth, evaluateController.getDemoUsers);
-
-router.get('/:name', evaluateLimiter, consumerAuth, evaluateController.evaluateFlag);
+// All evaluate endpoints are rate-limited per SDK key.
+// Static routes must come before /:name to avoid route collisions.
+router.get ('/_users', evaluateLimiter, consumerAuth, evaluateController.getDemoUsers);
+router.get ('/_all',   evaluateLimiter, consumerAuth, evaluateController.evaluateAll);
+router.post('/batch',  evaluateLimiter, consumerAuth, evaluateController.evaluateBatch);
+router.get ('/:name',  evaluateLimiter, consumerAuth, evaluateController.evaluateFlag);
 
 module.exports = router;

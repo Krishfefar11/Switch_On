@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const FlagImpressionSchema = new mongoose.Schema({
   flagId:         { type: mongoose.Schema.Types.ObjectId, ref: 'FeatureFlag', required: true },
   flagName:       { type: String, required: true },
+  projectId:      { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
   userId:         { type: String, required: true },
   enabled:        { type: Boolean, required: true },
   value:          { type: mongoose.Schema.Types.Mixed, default: null },

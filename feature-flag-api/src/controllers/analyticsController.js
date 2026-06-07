@@ -79,34 +79,92 @@ const getFlagAnalytics = async (req, res, next) => {
 };
 
 // GET /api/analytics/overview
-// Summary stats across all flags for the dashboard
+// Summary stats for the dashboard — scoped to the user's projects
 const getAnalyticsOverview = async (req, res, next) => {
   try {
     const { environment = 'development' } = req.query;
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const totalEvaluations  = await FlagImpression.countDocuments({ environment, createdAt: { $gte: since } });
-    const uniqueUsers       = await FlagImpression.distinct('userId', { environment, createdAt: { $gte: since } });
+    // Scope to the org's projects when the user is authenticated via JWT
+    const baseMatch = { environment, createdAt: { $gte: since } };
+    if (req.user?.organizationId) {
+      const FeatureFlag = require('../models/FeatureFlag');
+      const Project = require('../models/Project');
+      const orgProjects = await Project.find({ organizationId: req.user.organizationId }).select('_id').lean();
+      const projectIds  = orgProjects.map(p => p._id);
+      baseMatch.$or = [{ projectId: { $in: projectIds } }, { projectId: null }];
+    }
+
+    const totalEvaluations  = await FlagImpression.countDocuments(baseMatch);
+    const uniqueUsers       = await FlagImpression.distinct('userId', baseMatch);
 
     // Top 5 most evaluated flags
     const topFlags = await FlagImpression.aggregate([
-      { $match: { environment, createdAt: { $gte: since } } },
+      { $match: baseMatch },
       { $group: { _id: '$flagName', count: { $sum: 1 }, enabled: { $sum: { $cond: ['$enabled', 1, 0] } } } },
       { $sort: { count: -1 } },
       { $limit: 5 },
     ]);
 
     // Rule matches
-    const ruleMatches = await FlagImpression.countDocuments({ environment, reason: 'RULE_MATCH', createdAt: { $gte: since } });
+    const ruleMatches = await FlagImpression.countDocuments({ ...baseMatch, reason: 'RULE_MATCH' });
 
     res.json({
-      period:       '7d',
-      evaluations:  totalEvaluations,
-      uniqueUsers:  uniqueUsers.length,
+      period:          '7d',
+      evaluations:     totalEvaluations,   // total impressions logged
+      totalEvaluations,                    // alias for backward compat
+      uniqueUsers:     uniqueUsers.length,
       ruleMatches,
-      topFlags:     topFlags.map(f => ({ name: f._id, count: f.count, enabled: f.enabled })),
+      flagsEvaluated:  topFlags.length,    // distinct flags that received traffic
+      topFlags:        topFlags.map(f => ({ name: f._id, flagName: f._id, count: f.count, enabled: f.enabled })),
     });
   } catch (error) { next(error); }
 };
 
-module.exports = { getFlagAnalytics, getAnalyticsOverview };
+// GET /api/analytics/stale?environment=development&days=30
+// Returns flags that are enabled but have received 0 evaluations in the last N days.
+// Helps teams identify flags that are safe to clean up.
+const getStaleFlagIds = async (req, res, next) => {
+  try {
+    const { environment = 'development', days = 30 } = req.query;
+    const since = new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000);
+
+    // Scope to user's org projects
+    const flagQuery = { deletedAt: null, archived: false, environment };
+    if (req.user?.organizationId) {
+      const Project = require('../models/Project');
+      const orgProjects = await Project.find({ organizationId: req.user.organizationId }).select('_id').lean();
+      flagQuery.$or = [{ projectId: { $in: orgProjects.map(p => p._id) } }, { projectId: null }];
+    }
+
+    // Get all active flags in scope
+    const flags = await FeatureFlag.find(flagQuery).select('_id name enabled createdAt environment projectId').lean();
+    if (!flags.length) return res.json({ stale: [], count: 0, days: parseInt(days), environment });
+
+    const flagIds = flags.map(f => f._id);
+
+    // Find which flags DID receive evaluations recently
+    const recentlyEvaluated = await FlagImpression.distinct('flagId', {
+      flagId:    { $in: flagIds },
+      createdAt: { $gte: since },
+    });
+
+    const recentSet = new Set(recentlyEvaluated.map(id => String(id)));
+
+    // A flag is stale if: enabled + older than N days + no evaluations in last N days
+    const stale = flags.filter(f =>
+      f.enabled &&
+      new Date(f.createdAt) < since &&
+      !recentSet.has(String(f._id))
+    );
+
+    res.json({
+      stale: stale.map(f => ({ id: f._id, name: f.name, environment: f.environment, createdAt: f.createdAt })),
+      count: stale.length,
+      days:  parseInt(days),
+      environment,
+    });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getFlagAnalytics, getAnalyticsOverview, getStaleFlagIds };

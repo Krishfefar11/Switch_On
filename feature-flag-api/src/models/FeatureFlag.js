@@ -23,7 +23,7 @@ const TargetingRuleSchema = new mongoose.Schema({
 }, { _id: false });
 
 const FeatureFlagSchema = new mongoose.Schema({
-  name:              { type: String, required: true, unique: true, trim: true, lowercase: true },
+  name:              { type: String, required: true, trim: true, lowercase: true },
   description:       { type: String, default: '' },
   type:              { type: String, enum: ['boolean','string','number','json'], default: 'boolean' },
   enabled:           { type: Boolean, default: false },
@@ -35,10 +35,21 @@ const FeatureFlagSchema = new mongoose.Schema({
   environment:       { type: String, enum: ['development','staging','production'], default: 'development' },
   version:           { type: Number, default: 1 },
   deletedAt:         { type: Date, default: null },
+  projectId:         { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
+  archived:          { type: Boolean, default: false },
+  archivedAt:        { type: Date, default: null },
   createdBy:         { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy:         { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
+FeatureFlagSchema.index({ projectId: 1, environment: 1 });
+// Compound unique: same flag name is unique within a project+environment.
+// partialFilterExpression excludes legacy docs where projectId is null.
+FeatureFlagSchema.index(
+  { name: 1, environment: 1, projectId: 1 },
+  { unique: true, partialFilterExpression: { projectId: { $exists: true, $ne: null } } }
+);
+// Plain index for legacy (null-projectId) flag lookups
 FeatureFlagSchema.index({ name: 1, environment: 1 });
 FeatureFlagSchema.index({ deletedAt: 1 });
 FeatureFlagSchema.index({ tags: 1 });

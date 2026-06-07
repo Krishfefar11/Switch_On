@@ -67,6 +67,13 @@ export const AuthProvider = ({ children }) => {
     await fetchUser();
   };
 
+  // Used by InviteAcceptPage: sets the access token in memory AND
+  // fetches the user profile so AuthContext.user is populated before navigation.
+  const loginWithToken = async (accessToken) => {
+    setAccessToken(accessToken);
+    await fetchUser();
+  };
+
   const logout = async () => {
     try {
       await apiLogout();
@@ -76,7 +83,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, loginWithToken }}>
       {children}
     </AuthContext.Provider>
   );
