@@ -17,7 +17,7 @@ A production-grade, multi-tenant feature flag control plane. Ship features safel
 |---|---|---|
 | **REST API** | https://switchon-api2.onrender.com | Render (Docker) |
 | **Demo Store (VOLT)** | https://switchon-demo2.onrender.com | Render (Docker) |
-| **Dashboard** | *(Vercel — deploy your own)* | Vercel |
+| **Dashboard** | https://switchon-dashboard.vercel.app | Vercel |
 
 **Demo credentials:** `admin@demo.com` / `Admin1234!`
 
